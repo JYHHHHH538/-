@@ -940,7 +940,7 @@
             try {
                 progress.textContent = '正在识别中...';
 
-                const response = await fetch('/api/ocr', {
+                const response = await fetch('/.netlify/functions/ocr', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ imageBase64 })
