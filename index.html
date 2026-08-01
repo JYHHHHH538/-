@@ -940,44 +940,16 @@
             try {
                 progress.textContent = '正在识别中...';
 
-                const SECRET_ID = 'cmcX9ue5gKZghMOrSQL81Y85';
-                const SECRET_KEY = 'IHGAS6BOPjNRFRtObG92BmxW2IeJA29G';
-                const host = 'ocr.tencentcloudapi.com';
-                const service = 'ocr';
-                const timestamp = Math.floor(Date.now() / 1000);
-                const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-                const payload = JSON.stringify({ ImageBase64: imageBase64 });
-
-                const canonicalHeaders = `content-type:application/json\nhost:${host}\n`;
-                const signedHeaders = 'content-type;host';
-                const hashedPayload = CryptoJS.SHA256(payload).toString();
-                const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${hashedPayload}`;
-                const credentialScope = `${date}/${service}/tc3_request`;
-                const hashedCanonical = CryptoJS.SHA256(canonicalRequest).toString();
-                const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${credentialScope}\n${hashedCanonical}`;
-                const secretDate = CryptoJS.HmacSHA256(date, 'TC3' + SECRET_KEY);
-                const secretService = CryptoJS.HmacSHA256(service, secretDate);
-                const secretSigning = CryptoJS.HmacSHA256('tc3_request', secretService);
-                const signature = CryptoJS.HmacSHA256(stringToSign, secretSigning).toString();
-                const authorization = `TC3-HMAC-SHA256 Credential=${SECRET_ID}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-                const response = await fetch(`https://${host}`, {
+                const response = await fetch('/api/ocr', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': authorization,
-                        'Content-Type': 'application/json',
-                        'X-TC-Action': 'GeneralBasicOCR',
-                        'X-TC-Timestamp': String(timestamp),
-                        'X-TC-Version': '2018-11-27',
-                        'X-TC-Region': 'ap-guangzhou'
-                    },
-                    body: payload
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageBase64 })
                 });
 
                 const result = await response.json();
 
-                if (result.Response && result.Response.TextDetections) {
-                    const texts = result.Response.TextDetections.map(item => item.DetectedText).join(' ');
+                if (result.texts) {
+                    const texts = result.texts;
 
                     function fillAmount(amount) {
                         if (mode === 'simple') {
@@ -1046,7 +1018,7 @@
                         throw new Error('未识别到有效金额');
                     }
                 } else {
-                    throw new Error(result.Response?.Error?.Message || '识别失败');
+                    throw new Error(result.error || result.details || '识别失败');
                 }
 
             } catch (error) {
