@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AA制分账计算器</title>
-    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
     <style>
         * {
             margin: 0;
@@ -255,37 +254,6 @@
             color: #666;
             font-size: 14px;
         }
-
-        .api-config {
-            background: #fff3cd;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #ffc107;
-        }
-
-        .api-config input {
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 12px;
-        }
-
-        .api-config small {
-            color: #856404;
-            font-size: 12px;
-        }
-
-        .config-toggle {
-            color: #667eea;
-            cursor: pointer;
-            text-decoration: underline;
-            font-size: 14px;
-            margin-bottom: 10px;
-            display: inline-block;
-        }
     </style>
 </head>
 <body>
@@ -300,14 +268,6 @@
 
         <!-- 简单模式 -->
         <div id="simple" class="tab-content active">
-            <span class="config-toggle" onclick="toggleApiConfig()">⚙️ 配置OCR密钥</span>
-            <div class="api-config" id="apiConfig" style="display:none;">
-                <small>首次使用需配置腾讯云OCR密钥（每月1000次免费）<br>
-                <a href="https://console.cloud.tencent.com/cam/capi" target="_blank">点击获取密钥</a></small>
-                <input type="text" id="secretId" placeholder="SecretId (如: AKID...)" oninput="saveApiConfig()">
-                <input type="password" id="secretKey" placeholder="SecretKey" oninput="saveApiConfig()">
-            </div>
-
             <button class="scan-btn" onclick="scanBill('simple')">
                 📸 扫描账单识别金额
             </button>
@@ -521,42 +481,7 @@
         }
 
         // 扫描账单功能
-        function toggleApiConfig() {
-            const config = document.getElementById('apiConfig');
-            config.style.display = config.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function saveApiConfig() {
-            const secretId = document.getElementById('secretId').value;
-            const secretKey = document.getElementById('secretKey').value;
-            localStorage.setItem('tencentSecretId', secretId);
-            localStorage.setItem('tencentSecretKey', secretKey);
-        }
-
-        function loadApiConfig() {
-            const secretId = localStorage.getItem('tencentSecretId') || '';
-            const secretKey = localStorage.getItem('tencentSecretKey') || '';
-            if (document.getElementById('secretId')) {
-                document.getElementById('secretId').value = secretId;
-            }
-            if (document.getElementById('secretKey')) {
-                document.getElementById('secretKey').value = secretKey;
-            }
-        }
-
-        // 页面加载时恢复配置
-        window.addEventListener('DOMContentLoaded', loadApiConfig);
-
         function scanBill(mode) {
-            const secretId = localStorage.getItem('tencentSecretId');
-            const secretKey = localStorage.getItem('tencentSecretKey');
-
-            if (!secretId || !secretKey) {
-                alert('请先配置OCR密钥！\n点击"⚙️ 配置OCR密钥"进行设置。');
-                document.getElementById('apiConfig').style.display = 'block';
-                return;
-            }
-
             const input = document.getElementById(mode + 'ScanInput');
             input.click();
         }
@@ -594,43 +519,13 @@
 
         async function recognizeWithTencentOCR(imageBase64, mode, progress, scanBtns) {
             try {
-                const secretId = localStorage.getItem('tencentSecretId');
-                const secretKey = localStorage.getItem('tencentSecretKey');
-
-                if (!secretId || !secretKey) {
-                    throw new Error('请先配置OCR密钥');
-                }
-
-                const timestamp = Math.floor(Date.now() / 1000);
-                const nonce = Math.floor(Math.random() * 1000000);
-
-                // 构建请求参数
-                const params = {
-                    ImageBase64: imageBase64,
-                    Action: 'GeneralBasicOCR',
-                    Version: '2018-11-27',
-                    Region: 'ap-guangzhou',
-                    Timestamp: timestamp,
-                    Nonce: nonce,
-                    SecretId: secretId
-                };
-
-                // 生成签名
-                const paramStr = Object.keys(params).sort().map(key =>
-                    `${key}=${params[key]}`
-                ).join('&');
-
-                const signStr = 'POSTocr.tencentcloudapi.com/?' + paramStr;
-                const signature = CryptoJS.HmacSHA256(signStr, secretKey).toString(CryptoJS.enc.Base64);
-
-                // 发送请求
-                const response = await fetch('https://ocr.tencentcloudapi.com/', {
+                // 调用后端API代理
+                const response = await fetch('/api/ocr', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': signature
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(params)
+                    body: JSON.stringify({ imageBase64 })
                 });
 
                 const result = await response.json();
@@ -675,7 +570,7 @@
                         throw new Error('未识别到金额');
                     }
                 } else {
-                    throw new Error(result.Response?.Error?.Message || '识别失败');
+                    throw new Error(result.error || result.Response?.Error?.Message || '识别失败');
                 }
 
             } catch (error) {
