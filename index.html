@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AA制分账计算器</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -210,6 +211,50 @@
                 transform: translateX(-50%) translateY(0);
             }
         }
+
+        .scan-btn {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+
+        .scan-btn:hover {
+            background: #5568d3;
+        }
+
+        .scan-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .progress {
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            display: none;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -224,6 +269,13 @@
 
         <!-- 简单模式 -->
         <div id="simple" class="tab-content active">
+            <button class="scan-btn" onclick="scanBill('simple')">
+                📸 扫描账单识别金额
+            </button>
+            <input type="file" id="simpleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'simple')">
+            <img id="simplePreview" class="preview-img">
+            <div id="simpleProgress" class="progress">正在识别中...</div>
+
             <div class="input-group">
                 <label>总金额（元）</label>
                 <input type="number" id="totalAmount" placeholder="例如：520" oninput="calculateSimple()">
@@ -241,6 +293,13 @@
 
         <!-- 多笔消费 -->
         <div id="multiple" class="tab-content">
+            <button class="scan-btn" onclick="scanBill('multiple')">
+                📸 扫描账单识别金额
+            </button>
+            <input type="file" id="multipleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'multiple')">
+            <img id="multiplePreview" class="preview-img">
+            <div id="multipleProgress" class="progress">正在识别中...</div>
+
             <div class="expense-list" id="expenseList">
                 <div class="expense-item">
                     <input type="text" placeholder="消费名称（如：早餐）" class="expense-name">
@@ -269,6 +328,13 @@
 
         <!-- 已付款模式 -->
         <div id="advance" class="tab-content">
+            <button class="scan-btn" onclick="scanBill('advance')">
+                📸 扫描账单识别金额
+            </button>
+            <input type="file" id="advanceScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'advance')">
+            <img id="advancePreview" class="preview-img">
+            <div id="advanceProgress" class="progress">正在识别中...</div>
+
             <div class="input-group">
                 <label>总金额（元）</label>
                 <input type="number" id="advTotalAmount" placeholder="例如：520" oninput="calculateAdvance()">
@@ -413,6 +479,125 @@
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 2000);
+        }
+
+        // 扫描账单功能
+        function scanBill(mode) {
+            const input = document.getElementById(mode + 'ScanInput');
+            input.click();
+        }
+
+        function handleImageUpload(event, mode) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 显示预览图
+            const preview = document.getElementById(mode + 'Preview');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // 显示进度
+            const progress = document.getElementById(mode + 'Progress');
+            progress.style.display = 'block';
+            progress.textContent = '正在识别中...';
+
+            // 禁用扫描按钮
+            const scanBtns = document.querySelectorAll('.scan-btn');
+            scanBtns.forEach(btn => btn.disabled = true);
+
+            // OCR识别
+            Tesseract.recognize(
+                file,
+                'chi_sim+eng', // 支持中文和英文
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const percent = Math.round(m.progress * 100);
+                            progress.textContent = `识别中... ${percent}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                // 提取金额（支持多种格式：123.45, ¥123.45, $123.45, 123元）
+                const amounts = text.match(/(?:¥|￥|\$|元)?\s*(\d+(?:\.\d{1,2})?)\s*(?:元|Yuan)?/gi);
+
+                if (amounts && amounts.length > 0) {
+                    // 提取所有数字
+                    const numbers = amounts.map(a => {
+                        const num = a.match(/\d+(?:\.\d{1,2})?/);
+                        return num ? parseFloat(num[0]) : 0;
+                    }).filter(n => n > 0);
+
+                    if (numbers.length > 0) {
+                        // 取最大的金额（通常是总金额）
+                        const maxAmount = Math.max(...numbers);
+
+                        // 填充到对应输入框
+                        if (mode === 'simple') {
+                            document.getElementById('totalAmount').value = maxAmount;
+                            calculateSimple();
+                        } else if (mode === 'multiple') {
+                            // 多笔消费模式：如果识别到多个金额，添加到列表
+                            if (numbers.length === 1) {
+                                const firstInput = document.querySelector('#expenseList .expense-amount');
+                                if (firstInput) {
+                                    firstInput.value = numbers[0];
+                                    calculateMultiple();
+                                }
+                            } else {
+                                // 多个金额：填充到现有项或添加新项
+                                const existingInputs = document.querySelectorAll('#expenseList .expense-amount');
+                                numbers.forEach((num, index) => {
+                                    if (index < existingInputs.length) {
+                                        existingInputs[index].value = num;
+                                    } else {
+                                        addExpense();
+                                        const newInputs = document.querySelectorAll('#expenseList .expense-amount');
+                                        newInputs[newInputs.length - 1].value = num;
+                                    }
+                                });
+                                calculateMultiple();
+                            }
+                        } else if (mode === 'advance') {
+                            document.getElementById('advTotalAmount').value = maxAmount;
+                            calculateAdvance();
+                        }
+
+                        progress.textContent = `✅ 识别成功！找到金额：¥${maxAmount}`;
+                        progress.style.background = '#d4edda';
+                        progress.style.color = '#155724';
+                    } else {
+                        progress.textContent = '❌ 未识别到有效金额，请手动输入';
+                        progress.style.background = '#f8d7da';
+                        progress.style.color = '#721c24';
+                    }
+                } else {
+                    progress.textContent = '❌ 未识别到金额，请手动输入';
+                    progress.style.background = '#f8d7da';
+                    progress.style.color = '#721c24';
+                }
+
+                // 恢复按钮
+                scanBtns.forEach(btn => btn.disabled = false);
+
+                // 3秒后隐藏进度
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    progress.style.background = '#f0f0f0';
+                    progress.style.color = '#666';
+                }, 3000);
+
+            }).catch(err => {
+                console.error('OCR识别失败:', err);
+                progress.textContent = '❌ 识别失败，请重试或手动输入';
+                progress.style.background = '#f8d7da';
+                progress.style.color = '#721c24';
+                scanBtns.forEach(btn => btn.disabled = false);
+            });
         }
     </script>
 </body>
