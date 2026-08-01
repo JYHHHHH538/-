@@ -1,12 +1,20 @@
-// Vercel Serverless Function - OCR代理
-const crypto = require('crypto');
+// Vercel Serverless Function - 百度OCR
+const https = require('https');
+
+async function getAccessToken(apiKey, secretKey) {
+    return new Promise((resolve, reject) => {
+        const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try { resolve(JSON.parse(data).access_token); } catch(e) { reject(e); }
+            });
+        }).on('error', reject);
+    });
+}
 
 module.exports = async (req, res) => {
-    // 只允许POST请求
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
     // CORS头
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -16,61 +24,49 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     try {
         const { imageBase64 } = req.body;
-
         if (!imageBase64) {
             return res.status(400).json({ error: '缺少图片数据' });
         }
 
-        // 腾讯云密钥（存储在环境变量中）
-        const secretId = process.env.TENCENT_SECRET_ID;
-        const secretKey = process.env.TENCENT_SECRET_KEY;
+        const apiKey = 'cmcX9ue5gKZghMOrSQL81Y85';
+        const secretKey = 'IHGAS6BOPjNRFRtObG92BmxW2IeJA29G';
+        const token = await getAccessToken(apiKey, secretKey);
 
-        if (!secretId || !secretKey) {
-            return res.status(500).json({ error: '服务配置错误' });
-        }
-
-        const timestamp = Math.floor(Date.now() / 1000);
-        const nonce = Math.floor(Math.random() * 1000000);
-
-        // 构建请求参数
-        const params = {
-            ImageBase64: imageBase64,
-            Action: 'GeneralBasicOCR',
-            Version: '2018-11-27',
-            Region: 'ap-guangzhou',
-            Timestamp: timestamp,
-            Nonce: nonce,
-            SecretId: secretId
-        };
-
-        // 生成签名
-        const paramStr = Object.keys(params).sort().map(key =>
-            `${key}=${params[key]}`
-        ).join('&');
-
-        const signStr = 'POSTocr.tencentcloudapi.com/?' + paramStr;
-        const hmac = crypto.createHmac('sha256', secretKey);
-        const signature = hmac.update(signStr).digest('base64');
-
-        // 调用腾讯云OCR
-        const response = await fetch('https://ocr.tencentcloudapi.com/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': signature
-            },
-            body: JSON.stringify(params)
+        const result = await new Promise((resolve, reject) => {
+            const body = new URLSearchParams({ image: imageBase64 }).toString();
+            const options = {
+                hostname: 'aip.baidubce.com',
+                path: `/rest/2.0/ocr/v1/general_basic?access_token=${token}`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(body)
+                }
+            };
+            const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+            });
+            req.on('error', reject);
+            req.write(body);
+            req.end();
         });
 
-        const result = await response.json();
-
-        // 返回结果
-        res.status(200).json(result);
+        if (result.words_result) {
+            const texts = result.words_result.map(item => item.words).join(' ');
+            return res.status(200).json({ texts });
+        } else {
+            return res.status(500).json({ error: result.error_msg || '识别失败' });
+        }
 
     } catch (error) {
-        console.error('OCR Error:', error);
-        res.status(500).json({ error: '识别失败', details: error.message });
+        return res.status(500).json({ error: '识别失败', details: error.message });
     }
 };
