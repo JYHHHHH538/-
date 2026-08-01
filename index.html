@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AA制分账计算器</title>
     <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -14,49 +16,86 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
         }
 
         .container {
             background: white;
             border-radius: 20px;
-            padding: 30px;
-            max-width: 500px;
+            padding: 80px 20px 25px 20px;
+            max-width: 100%;
             width: 100%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            min-height: 600px;
         }
 
         h1 {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
-            font-size: 28px;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            font-size: 24px;
         }
 
         .tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
+            gap: 8px;
+            margin-bottom: 20px;
         }
 
         .tab {
             flex: 1;
-            padding: 12px;
+            padding: 10px 8px;
             border: none;
             background: #f0f0f0;
             border-radius: 10px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             transition: all 0.3s;
         }
 
+        @media (min-width: 768px) {
+            .container {
+                max-width: 500px;
+                padding: 30px 30px 100px 30px;
+                min-height: 700px;
+            }
+
+            h1 {
+                font-size: 28px;
+                margin-bottom: 30px;
+            }
+
+            .logo {
+                max-width: 80px;
+                top: 20px;
+                right: 20px;
+            }
+
+            .tabs {
+                gap: 10px;
+                margin-bottom: 30px;
+            }
+
+            .tab {
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            body {
+                padding: 20px;
+                align-items: center;
+            }
+        }
+
         .tab.active {
-            background: #667eea;
+            background: #00b4d8;
             color: white;
         }
 
@@ -90,7 +129,7 @@
 
         input[type="number"]:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #00b4d8;
         }
 
         .result {
@@ -109,13 +148,13 @@
 
         .result-amount {
             font-size: 36px;
-            color: #667eea;
+            color: #0077b6;
             font-weight: bold;
             margin: 10px 0;
         }
 
         .copy-btn {
-            background: #667eea;
+            background: #00b4d8;
             color: white;
             border: none;
             padding: 12px 30px;
@@ -127,7 +166,7 @@
         }
 
         .copy-btn:hover {
-            background: #5568d3;
+            background: #0096c7;
         }
 
         .copy-btn:active {
@@ -214,7 +253,7 @@
 
         .scan-btn {
             width: 100%;
-            background: #667eea;
+            background: #00b4d8;
             color: white;
             border: none;
             padding: 15px;
@@ -230,7 +269,7 @@
         }
 
         .scan-btn:hover {
-            background: #5568d3;
+            background: #0096c7;
         }
 
         .scan-btn:disabled {
@@ -245,6 +284,32 @@
             display: none;
         }
 
+        .preview-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .delete-preview-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 59, 48, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 18px;
+            cursor: pointer;
+            display: none;
+            z-index: 10;
+        }
+
+        .delete-preview-btn:hover {
+            background: rgba(255, 59, 48, 1);
+        }
+
         .progress {
             background: #f0f0f0;
             border-radius: 8px;
@@ -255,10 +320,131 @@
             color: #666;
             font-size: 14px;
         }
+
+        .scan-history {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .scan-history-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .scan-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .scan-history-item .amount {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .scan-history-item .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .scan-history-total {
+            border-top: 2px solid #dee2e6;
+            padding-top: 10px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .scan-history-total .amount {
+            color: #0077b6;
+        }
+
+        .export-pdf-btn {
+            width: 100%;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .export-pdf-btn:hover {
+            background: #218838;
+        }
+
+        .export-pdf-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .next-scan-btn {
+            width: 100%;
+            background: #00b4d8;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            font-size: 15px;
+            margin: 10px 0;
+            display: none;
+            transition: background 0.3s;
+        }
+
+        .next-scan-btn:hover {
+            background: #0096c7;
+        }
+
+        .logo {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            max-width: 70px;
+            height: auto;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px 8px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <img src="logo.png" alt="Logo" class="logo">
         <h1>💰 AA制分账计算器</h1>
 
         <div class="tabs">
@@ -273,8 +459,22 @@
                 📸 扫描账单识别金额
             </button>
             <input type="file" id="simpleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'simple')">
-            <img id="simplePreview" class="preview-img">
+            <div class="preview-container">
+                <img id="simplePreview" class="preview-img">
+                <button class="delete-preview-btn" id="simpleDeleteBtn" onclick="deletePreview('simple')" title="删除图片">×</button>
+            </div>
             <div id="simpleProgress" class="progress">正在识别中...</div>
+            <button class="next-scan-btn" id="simpleNextScanBtn" onclick="nextScan('simple')">📷 扫描下一张</button>
+
+            <div id="simpleScanHistory" class="scan-history">
+                <div class="scan-history-title">📋 扫描记录</div>
+                <div id="simpleScanList"></div>
+                <div class="scan-history-total">
+                    <span>累计总额：</span>
+                    <span class="amount" id="simpleScanTotal">¥0.00</span>
+                </div>
+                <button class="export-pdf-btn" onclick="exportScanPDF('simple')">📄 导出PDF账单</button>
+            </div>
 
             <div class="input-group">
                 <label>总金额（元）</label>
@@ -297,8 +497,22 @@
                 📸 扫描账单识别金额
             </button>
             <input type="file" id="multipleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'multiple')">
-            <img id="multiplePreview" class="preview-img">
+            <div class="preview-container">
+                <img id="multiplePreview" class="preview-img">
+                <button class="delete-preview-btn" id="multipleDeleteBtn" onclick="deletePreview('multiple')" title="删除图片">×</button>
+            </div>
             <div id="multipleProgress" class="progress">正在识别中...</div>
+            <button class="next-scan-btn" id="multipleNextScanBtn" onclick="nextScan('multiple')">📷 扫描下一张</button>
+
+            <div id="multipleScanHistory" class="scan-history">
+                <div class="scan-history-title">📋 扫描记录</div>
+                <div id="multipleScanList"></div>
+                <div class="scan-history-total">
+                    <span>累计总额：</span>
+                    <span class="amount" id="multipleScanTotal">¥0.00</span>
+                </div>
+                <button class="export-pdf-btn" onclick="exportScanPDF('multiple')">📄 导出PDF账单</button>
+            </div>
 
             <div class="expense-list" id="expenseList">
                 <div class="expense-item">
@@ -332,8 +546,22 @@
                 📸 扫描账单识别金额
             </button>
             <input type="file" id="advanceScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'advance')">
-            <img id="advancePreview" class="preview-img">
+            <div class="preview-container">
+                <img id="advancePreview" class="preview-img">
+                <button class="delete-preview-btn" id="advanceDeleteBtn" onclick="deletePreview('advance')" title="删除图片">×</button>
+            </div>
             <div id="advanceProgress" class="progress">正在识别中...</div>
+            <button class="next-scan-btn" id="advanceNextScanBtn" onclick="nextScan('advance')">📷 扫描下一张</button>
+
+            <div id="advanceScanHistory" class="scan-history">
+                <div class="scan-history-title">📋 扫描记录</div>
+                <div id="advanceScanList"></div>
+                <div class="scan-history-total">
+                    <span>累计总额：</span>
+                    <span class="amount" id="advanceScanTotal">¥0.00</span>
+                </div>
+                <button class="export-pdf-btn" onclick="exportScanPDF('advance')">📄 导出PDF账单</button>
+            </div>
 
             <div class="input-group">
                 <label>总金额（元）</label>
@@ -481,7 +709,190 @@
             }, 2000);
         }
 
+        // 扫描记录数据 (each entry: {amount, imageDataUrl})
+        const scanHistories = { simple: [], multiple: [], advance: [] };
+
+        function addScanRecord(mode, amount, imageDataUrl) {
+            const history = scanHistories[mode];
+            const index = history.length + 1;
+            history.push({ amount, imageDataUrl });
+
+            const list = document.getElementById(mode + 'ScanList');
+            const item = document.createElement('div');
+            item.className = 'scan-history-item';
+            item.dataset.index = index - 1;
+            item.innerHTML = `
+                <span>第${index}次扫描</span>
+                <span class="amount">¥${amount.toFixed(2)}</span>
+                <button class="remove-btn" onclick="removeScanRecord('${mode}', ${index - 1}, this)">删除</button>
+            `;
+            list.appendChild(item);
+
+            updateScanTotal(mode);
+            document.getElementById(mode + 'ScanHistory').style.display = 'block';
+        }
+
+        function removeScanRecord(mode, index, btn) {
+            scanHistories[mode].splice(index, 1);
+            btn.closest('.scan-history-item').remove();
+
+            const items = document.querySelectorAll(`#${mode}ScanList .scan-history-item`);
+            items.forEach((item, i) => {
+                item.dataset.index = i;
+                item.querySelector('span:first-child').textContent = `第${i + 1}次扫描`;
+                item.querySelector('.remove-btn').setAttribute('onclick', `removeScanRecord('${mode}', ${i}, this)`);
+            });
+
+            updateScanTotal(mode);
+            if (scanHistories[mode].length === 0) {
+                document.getElementById(mode + 'ScanHistory').style.display = 'none';
+            }
+        }
+
+        function updateScanTotal(mode) {
+            const total = scanHistories[mode].reduce((sum, r) => sum + r.amount, 0);
+            document.getElementById(mode + 'ScanTotal').textContent = `¥${total.toFixed(2)}`;
+
+            if (total > 0) {
+                if (mode === 'simple') {
+                    document.getElementById('totalAmount').value = total.toFixed(2);
+                    calculateSimple();
+                } else if (mode === 'advance') {
+                    document.getElementById('advTotalAmount').value = total.toFixed(2);
+                    calculateAdvance();
+                }
+            }
+        }
+
+        async function exportScanPDF(mode) {
+            const history = scanHistories[mode];
+            if (history.length === 0) return;
+
+            const btn = document.querySelector(`#${mode}ScanHistory .export-pdf-btn`);
+            btn.disabled = true;
+            btn.textContent = '生成中...';
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+                const pageW = 210;
+                const pageH = 297;
+                const margin = 20;
+
+                // 创建临时容器
+                const container = document.createElement('div');
+                container.style.cssText = 'position:absolute;left:-9999px;width:680px;background:white;padding:40px;font-family:Arial,sans-serif;';
+
+                // 标题
+                const title = document.createElement('div');
+                title.style.cssText = 'font-size:28px;font-weight:bold;color:#333;margin-bottom:15px;';
+                title.textContent = '账单汇总';
+                container.appendChild(title);
+
+                // 总金额
+                const total = history.reduce((sum, r) => sum + r.amount, 0);
+                const totalDiv = document.createElement('div');
+                totalDiv.style.cssText = 'margin-bottom:10px;';
+                totalDiv.innerHTML = `<span style="font-size:36px;color:#007bff;font-weight:bold;">¥${total.toFixed(2)}</span> <span style="font-size:14px;color:#888;margin-left:10px;">共${history.length}笔</span>`;
+                container.appendChild(totalDiv);
+
+                // 分割线
+                const divider = document.createElement('div');
+                divider.style.cssText = 'border-top:2px solid #ddd;margin:20px 0;';
+                container.appendChild(divider);
+
+                // 账单列表
+                for (let i = 0; i < history.length; i++) {
+                    const { amount, imageDataUrl } = history[i];
+
+                    const itemDiv = document.createElement('div');
+                    itemDiv.style.cssText = 'margin-bottom:25px;';
+
+                    // 序号和金额
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-size:16px;margin-bottom:8px;';
+                    header.innerHTML = `<span style="color:#666;">${i + 1}.</span> <span style="color:#28a745;font-weight:bold;">¥${amount.toFixed(2)}</span>`;
+                    itemDiv.appendChild(header);
+
+                    // 图片
+                    if (imageDataUrl) {
+                        const img = document.createElement('img');
+                        img.src = imageDataUrl;
+                        img.style.cssText = 'max-width:500px;height:auto;display:block;';
+                        itemDiv.appendChild(img);
+                    }
+
+                    // 分隔线
+                    if (i < history.length - 1) {
+                        const separator = document.createElement('div');
+                        separator.style.cssText = 'border-bottom:1px solid #eee;margin-top:15px;';
+                        itemDiv.appendChild(separator);
+                    }
+
+                    container.appendChild(itemDiv);
+                }
+
+                document.body.appendChild(container);
+
+                // 使用 html2canvas 渲染
+                const canvas = await html2canvas(container, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                });
+
+                document.body.removeChild(container);
+
+                // 将 canvas 转换为图片并添加到 PDF
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const imgWidth = pageW - margin * 2;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                let heightLeft = imgHeight;
+                let position = margin;
+
+                doc.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight);
+                heightLeft -= (pageH - margin * 2);
+
+                // 如果内容超过一页，添加新页
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight + margin;
+                    doc.addPage();
+                    doc.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight);
+                    heightLeft -= (pageH - margin * 2);
+                }
+
+                const dateStr = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-');
+                doc.save(`账单_${dateStr}.pdf`);
+            } catch (error) {
+                console.error('PDF生成失败:', error);
+                alert('PDF生成失败，请重试');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📄 导出PDF账单';
+            }
+        }
+
         // 扫描账单功能
+        function nextScan(mode) {
+            deletePreview(mode);
+            scanBill(mode);
+        }
+
+        function deletePreview(mode) {
+            const preview = document.getElementById(mode + 'Preview');
+            const deleteBtn = document.getElementById(mode + 'DeleteBtn');
+            const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
+            const input = document.getElementById(mode + 'ScanInput');
+            preview.src = '';
+            preview.style.display = 'none';
+            deleteBtn.style.display = 'none';
+            if (nextScanBtn) nextScanBtn.style.display = 'none';
+            input.value = '';
+        }
+
         function scanBill(mode) {
             const input = document.getElementById(mode + 'ScanInput');
             input.click();
@@ -491,14 +902,20 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // 显示预览图
+            // 显示预览图和删除按钮
             const preview = document.getElementById(mode + 'Preview');
+            const deleteBtn = document.getElementById(mode + 'DeleteBtn');
             const reader = new FileReader();
             reader.onload = function(e) {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
+                deleteBtn.style.display = 'block';
             };
             reader.readAsDataURL(file);
+
+            // 隐藏"扫描下一张"按钮
+            const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
+            if (nextScanBtn) nextScanBtn.style.display = 'none';
 
             // 显示进度
             const progress = document.getElementById(mode + 'Progress');
@@ -512,70 +929,124 @@
             // 转换图片为Base64
             const imgReader = new FileReader();
             imgReader.onload = function(e) {
-                const base64 = e.target.result.split(',')[1];
-                recognizeWithTencentOCR(base64, mode, progress, scanBtns);
+                const dataUrl = e.target.result;
+                const base64 = dataUrl.split(',')[1];
+                recognizeWithTencentOCR(base64, dataUrl, mode, progress, scanBtns);
             };
             imgReader.readAsDataURL(file);
         }
 
-        async function recognizeWithTencentOCR(imageBase64, mode, progress, scanBtns) {
+        async function recognizeWithTencentOCR(imageBase64, imageDataUrl, mode, progress, scanBtns) {
             try {
-                progress.textContent = '正在上传识别...';
+                progress.textContent = '正在识别中...';
 
-                // 使用OCR.space免费API
-                const formData = new FormData();
-                formData.append('base64Image', 'data:image/jpeg;base64,' + imageBase64);
-                formData.append('language', 'chs');
-                formData.append('apikey', 'K87899142388957');
+                const SECRET_ID = 'cmcX9ue5gKZghMOrSQL81Y85';
+                const SECRET_KEY = 'IHGAS6BOPjNRFRtObG92BmxW2IeJA29G';
+                const host = 'ocr.tencentcloudapi.com';
+                const service = 'ocr';
+                const timestamp = Math.floor(Date.now() / 1000);
+                const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+                const payload = JSON.stringify({ ImageBase64: imageBase64 });
 
-                const response = await fetch('https://api.ocr.space/parse/image', {
+                const canonicalHeaders = `content-type:application/json\nhost:${host}\n`;
+                const signedHeaders = 'content-type;host';
+                const hashedPayload = CryptoJS.SHA256(payload).toString();
+                const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${hashedPayload}`;
+                const credentialScope = `${date}/${service}/tc3_request`;
+                const hashedCanonical = CryptoJS.SHA256(canonicalRequest).toString();
+                const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${credentialScope}\n${hashedCanonical}`;
+                const secretDate = CryptoJS.HmacSHA256(date, 'TC3' + SECRET_KEY);
+                const secretService = CryptoJS.HmacSHA256(service, secretDate);
+                const secretSigning = CryptoJS.HmacSHA256('tc3_request', secretService);
+                const signature = CryptoJS.HmacSHA256(stringToSign, secretSigning).toString();
+                const authorization = `TC3-HMAC-SHA256 Credential=${SECRET_ID}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+                const response = await fetch(`https://${host}`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Authorization': authorization,
+                        'Content-Type': 'application/json',
+                        'X-TC-Action': 'GeneralBasicOCR',
+                        'X-TC-Timestamp': String(timestamp),
+                        'X-TC-Version': '2018-11-27',
+                        'X-TC-Region': 'ap-guangzhou'
+                    },
+                    body: payload
                 });
 
                 const result = await response.json();
 
-                if (result.ParsedResults && result.ParsedResults[0]) {
-                    const text = result.ParsedResults[0].ParsedText;
+                if (result.Response && result.Response.TextDetections) {
+                    const texts = result.Response.TextDetections.map(item => item.DetectedText).join(' ');
 
-                    // 提取金额
-                    const amounts = text.match(/(?:¥|￥|\$|元|人民币)?\s*(\d+(?:\.\d{1,2})?)\s*(?:元|Yuan)?/gi);
-
-                    if (amounts && amounts.length > 0) {
-                        const numbers = amounts.map(a => {
-                            const num = a.match(/\d+(?:\.\d{1,2})?/);
-                            return num ? parseFloat(num[0]) : 0;
-                        }).filter(n => n > 0 && n < 1000000);
-
-                        if (numbers.length > 0) {
-                            const maxAmount = Math.max(...numbers);
-
-                            // 填充金额
-                            if (mode === 'simple') {
-                                document.getElementById('totalAmount').value = maxAmount;
-                                calculateSimple();
-                            } else if (mode === 'multiple') {
-                                const firstInput = document.querySelector('#expenseList .expense-amount');
-                                if (firstInput) {
-                                    firstInput.value = maxAmount;
-                                    calculateMultiple();
-                                }
-                            } else if (mode === 'advance') {
-                                document.getElementById('advTotalAmount').value = maxAmount;
-                                calculateAdvance();
+                    function fillAmount(amount) {
+                        if (mode === 'simple') {
+                            document.getElementById('totalAmount').value = amount;
+                            calculateSimple();
+                        } else if (mode === 'multiple') {
+                            const firstInput = document.querySelector('#expenseList .expense-amount');
+                            if (firstInput && !firstInput.value) {
+                                firstInput.value = amount;
+                            } else {
+                                addExpense();
+                                const inputs = document.querySelectorAll('#expenseList .expense-amount');
+                                const lastInput = inputs[inputs.length - 1];
+                                if (lastInput) lastInput.value = amount;
                             }
-
-                            progress.textContent = `✅ 识别成功！金额：¥${maxAmount}`;
-                            progress.style.background = '#d4edda';
-                            progress.style.color = '#155724';
-                        } else {
-                            throw new Error('未识别到有效金额');
+                            calculateMultiple();
+                        } else if (mode === 'advance') {
+                            document.getElementById('advTotalAmount').value = amount;
+                            calculateAdvance();
                         }
+                    }
+
+                    let amount = null;
+
+                    // 策略1: 合计/实付等关键词后的金额（避免单项+总计重复相加）
+                    const kwMatch = texts.match(
+                        /(?:合计|总计|实付|应付|总价|金额|需付|实收|小计|应收|收款|待付|付款)[：:=\s]*[¥￥]?\s*(\d+(?:\.\d{1,2})?)/
+                    );
+                    if (kwMatch) amount = parseFloat(kwMatch[1]);
+
+                    // 策略2: ¥/￥ 符号旁边的数字，一个用一个，多个全部相加
+                    if (!amount) {
+                        const currencyMatches = [...texts.matchAll(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/g)]
+                            .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
+                        if (currencyMatches.length === 1) {
+                            amount = currencyMatches[0];
+                        } else if (currencyMatches.length > 1) {
+                            amount = currencyMatches.reduce((sum, n) => sum + n, 0);
+                            amount = Math.round(amount * 100) / 100; // 避免浮点误差
+                        }
+                    }
+
+                    // 策略3: 带两位小数的数字，取最后出现的
+                    if (!amount) {
+                        const decimals = [...texts.matchAll(/(?<![.\d])(\d{1,5}\.\d{2})(?![.\d])/g)]
+                            .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
+                        if (decimals.length > 0) amount = decimals[decimals.length - 1];
+                    }
+
+                    // 策略4: 整数金额兜底
+                    if (!amount) {
+                        const ints = [...texts.matchAll(/(?<![.\d])(\d{1,5})(?![.\d])/g)]
+                            .map(m => parseFloat(m[1])).filter(n => n >= 1 && n <= 9999);
+                        if (ints.length > 0) amount = ints[ints.length - 1];
+                    }
+
+                    if (amount && amount > 0) {
+                        fillAmount(amount);
+                        addScanRecord(mode, amount, imageDataUrl);
+                        progress.textContent = `✅ 识别成功！金额：¥${amount}`;
+                        progress.style.background = '#d4edda';
+                        progress.style.color = '#155724';
+                        const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
+                        if (nextScanBtn) nextScanBtn.style.display = 'block';
                     } else {
-                        throw new Error('未识别到金额');
+                        throw new Error('未识别到有效金额');
                     }
                 } else {
-                    throw new Error(result.error || result.Response?.Error?.Message || '识别失败');
+                    throw new Error(result.Response?.Error?.Message || '识别失败');
                 }
 
             } catch (error) {
