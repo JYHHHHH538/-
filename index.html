@@ -520,49 +520,26 @@
 
         async function recognizeWithTencentOCR(imageBase64, mode, progress, scanBtns) {
             try {
-                // 解密密钥（简单混淆）
-                const secretId = atob('QUtJREhybUtXZVE0c1U5bXg0TjBPSlVhTDJoT280WEVjcEU3');
-                const secretKey = atob('Qll6UjYxTWFMa2lTYkpwYjVSUW45clp2bUVadUdLNWs=');
+                progress.textContent = '正在上传识别...';
 
-                const timestamp = Math.floor(Date.now() / 1000);
-                const nonce = Math.floor(Math.random() * 1000000);
+                // 使用OCR.space免费API
+                const formData = new FormData();
+                formData.append('base64Image', 'data:image/jpeg;base64,' + imageBase64);
+                formData.append('language', 'chs');
+                formData.append('apikey', 'K87899142388957');
 
-                // 构建请求参数
-                const params = {
-                    ImageBase64: imageBase64,
-                    Action: 'GeneralBasicOCR',
-                    Version: '2018-11-27',
-                    Region: 'ap-guangzhou',
-                    Timestamp: timestamp,
-                    Nonce: nonce,
-                    SecretId: secretId
-                };
-
-                // 生成签名
-                const paramStr = Object.keys(params).sort().map(key =>
-                    `${key}=${params[key]}`
-                ).join('&');
-
-                const signStr = 'POSTocr.tencentcloudapi.com/?' + paramStr;
-                const signature = CryptoJS.HmacSHA256(signStr, secretKey).toString(CryptoJS.enc.Base64);
-
-                // 发送请求
-                const response = await fetch('https://ocr.tencentcloudapi.com/', {
+                const response = await fetch('https://api.ocr.space/parse/image', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': signature
-                    },
-                    body: JSON.stringify(params)
+                    body: formData
                 });
 
                 const result = await response.json();
 
-                if (result.Response && result.Response.TextDetections) {
-                    const texts = result.Response.TextDetections.map(item => item.DetectedText).join(' ');
+                if (result.ParsedResults && result.ParsedResults[0]) {
+                    const text = result.ParsedResults[0].ParsedText;
 
                     // 提取金额
-                    const amounts = texts.match(/(?:¥|￥|\$|元|人民币)?\s*(\d+(?:\.\d{1,2})?)\s*(?:元|Yuan)?/gi);
+                    const amounts = text.match(/(?:¥|￥|\$|元|人民币)?\s*(\d+(?:\.\d{1,2})?)\s*(?:元|Yuan)?/gi);
 
                     if (amounts && amounts.length > 0) {
                         const numbers = amounts.map(a => {
