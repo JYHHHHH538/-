@@ -1,1 +1,5 @@
 .vercel
+node_modules/
+*.log
+package-lock.json
+cloudbase-ocr/
