@@ -519,8 +519,8 @@
 
         async function recognizeWithTencentOCR(imageBase64, mode, progress, scanBtns) {
             try {
-                // 调用后端API代理
-                const response = await fetch('/api/ocr', {
+                // 调用Cloudflare Worker API代理
+                const response = await fetch('https://worker.1149120412.workers.dev/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
