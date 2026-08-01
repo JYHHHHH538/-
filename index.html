@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AA制分账计算器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 18px;
+            transition: border 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .result {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .result-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .result-amount {
+            font-size: 36px;
+            color: #667eea;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        .expense-list {
+            margin-bottom: 20px;
+        }
+
+        .expense-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .expense-item input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .expense-item button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .add-expense-btn {
+            width: 100%;
+            background: #51cf66;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .total-expenses {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #51cf66;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 AA制分账计算器</h1>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('simple')">简单模式</button>
+            <button class="tab" onclick="switchTab('multiple')">多笔消费</button>
+            <button class="tab" onclick="switchTab('advance')">已付款</button>
+        </div>
+
+        <!-- 简单模式 -->
+        <div id="simple" class="tab-content active">
+            <div class="input-group">
+                <label>总金额（元）</label>
+                <input type="number" id="totalAmount" placeholder="例如：520" oninput="calculateSimple()">
+            </div>
+            <div class="input-group">
+                <label>参与人数</label>
+                <input type="number" id="peopleCount" placeholder="例如：4" oninput="calculateSimple()">
+            </div>
+            <div class="result" id="simpleResult" style="display:none;">
+                <div class="result-label">每人应付</div>
+                <div class="result-amount" id="perPerson">¥0.00</div>
+                <button class="copy-btn" onclick="copyResult('simple')">复制结果</button>
+            </div>
+        </div>
+
+        <!-- 多笔消费 -->
+        <div id="multiple" class="tab-content">
+            <div class="expense-list" id="expenseList">
+                <div class="expense-item">
+                    <input type="text" placeholder="消费名称（如：早餐）" class="expense-name">
+                    <input type="number" placeholder="金额" class="expense-amount" oninput="calculateMultiple()">
+                    <button onclick="removeExpense(this)">×</button>
+                </div>
+            </div>
+            <button class="add-expense-btn" onclick="addExpense()">+ 添加消费</button>
+
+            <div class="total-expenses" id="totalExpenses" style="display:none;">
+                <div style="font-size: 14px; color: #856404;">总消费</div>
+                <div style="font-size: 24px; font-weight: bold; color: #856404;" id="totalExp">¥0.00</div>
+            </div>
+
+            <div class="input-group">
+                <label>参与人数</label>
+                <input type="number" id="multiplePeople" placeholder="例如：4" oninput="calculateMultiple()">
+            </div>
+
+            <div class="result" id="multipleResult" style="display:none;">
+                <div class="result-label">每人应付</div>
+                <div class="result-amount" id="multiplePerPerson">¥0.00</div>
+                <button class="copy-btn" onclick="copyResult('multiple')">复制结果</button>
+            </div>
+        </div>
+
+        <!-- 已付款模式 -->
+        <div id="advance" class="tab-content">
+            <div class="input-group">
+                <label>总金额（元）</label>
+                <input type="number" id="advTotalAmount" placeholder="例如：520" oninput="calculateAdvance()">
+            </div>
+            <div class="input-group">
+                <label>参与人数</label>
+                <input type="number" id="advPeopleCount" placeholder="例如：4" oninput="calculateAdvance()">
+            </div>
+            <div class="input-group">
+                <label>已付款金额（元）</label>
+                <input type="number" id="paidAmount" placeholder="例如：300" oninput="calculateAdvance()">
+            </div>
+            <div class="result" id="advanceResult" style="display:none;">
+                <div class="result-label">其他人每人应付给垫付者</div>
+                <div class="result-amount" id="advPerPerson">¥0.00</div>
+                <div style="margin-top: 10px; color: #666; font-size: 14px;" id="advDetail"></div>
+                <button class="copy-btn" onclick="copyResult('advance')">复制结果</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">已复制到剪贴板！</div>
+
+    <script>
+        function switchTab(tabName) {
+            // 切换标签按钮状态
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 切换内容
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function calculateSimple() {
+            const total = parseFloat(document.getElementById('totalAmount').value);
+            const people = parseInt(document.getElementById('peopleCount').value);
+
+            if (total > 0 && people > 0) {
+                const perPerson = (total / people).toFixed(2);
+                document.getElementById('perPerson').textContent = `¥${perPerson}`;
+                document.getElementById('simpleResult').style.display = 'block';
+            } else {
+                document.getElementById('simpleResult').style.display = 'none';
+            }
+        }
+
+        function addExpense() {
+            const expenseList = document.getElementById('expenseList');
+            const newItem = document.createElement('div');
+            newItem.className = 'expense-item';
+            newItem.innerHTML = `
+                <input type="text" placeholder="消费名称（如：午餐）" class="expense-name">
+                <input type="number" placeholder="金额" class="expense-amount" oninput="calculateMultiple()">
+                <button onclick="removeExpense(this)">×</button>
+            `;
+            expenseList.appendChild(newItem);
+        }
+
+        function removeExpense(btn) {
+            if (document.querySelectorAll('.expense-item').length > 1) {
+                btn.parentElement.remove();
+                calculateMultiple();
+            }
+        }
+
+        function calculateMultiple() {
+            const amounts = document.querySelectorAll('.expense-amount');
+            let total = 0;
+
+            amounts.forEach(input => {
+                const value = parseFloat(input.value);
+                if (value > 0) total += value;
+            });
+
+            const people = parseInt(document.getElementById('multiplePeople').value);
+
+            if (total > 0) {
+                document.getElementById('totalExp').textContent = `¥${total.toFixed(2)}`;
+                document.getElementById('totalExpenses').style.display = 'block';
+            } else {
+                document.getElementById('totalExpenses').style.display = 'none';
+            }
+
+            if (total > 0 && people > 0) {
+                const perPerson = (total / people).toFixed(2);
+                document.getElementById('multiplePerPerson').textContent = `¥${perPerson}`;
+                document.getElementById('multipleResult').style.display = 'block';
+            } else {
+                document.getElementById('multipleResult').style.display = 'none';
+            }
+        }
+
+        function calculateAdvance() {
+            const total = parseFloat(document.getElementById('advTotalAmount').value);
+            const people = parseInt(document.getElementById('advPeopleCount').value);
+            const paid = parseFloat(document.getElementById('paidAmount').value);
+
+            if (total > 0 && people > 0 && paid >= 0) {
+                const perPerson = total / people;
+                const owedToPayer = perPerson - (paid / people);
+                const othersOwe = (total - paid) / (people - 1);
+
+                document.getElementById('advPerPerson').textContent = `¥${othersOwe.toFixed(2)}`;
+                document.getElementById('advDetail').textContent =
+                    `（总额¥${total} ÷ ${people}人 = 每人¥${perPerson.toFixed(2)}，已付¥${paid}）`;
+                document.getElementById('advanceResult').style.display = 'block';
+            } else {
+                document.getElementById('advanceResult').style.display = 'none';
+            }
+        }
+
+        function copyResult(mode) {
+            let text = '';
+
+            if (mode === 'simple') {
+                const total = document.getElementById('totalAmount').value;
+                const people = document.getElementById('peopleCount').value;
+                const perPerson = document.getElementById('perPerson').textContent;
+                text = `总消费：¥${total}\n参与人数：${people}人\n每人应付：${perPerson}`;
+            } else if (mode === 'multiple') {
+                const total = document.getElementById('totalExp').textContent;
+                const people = document.getElementById('multiplePeople').value;
+                const perPerson = document.getElementById('multiplePerPerson').textContent;
+                text = `总消费：${total}\n参与人数：${people}人\n每人应付：${perPerson}`;
+            } else if (mode === 'advance') {
+                const total = document.getElementById('advTotalAmount').value;
+                const people = document.getElementById('advPeopleCount').value;
+                const paid = document.getElementById('paidAmount').value;
+                const perPerson = document.getElementById('advPerPerson').textContent;
+                text = `总消费：¥${total}\n参与人数：${people}人\n已垫付：¥${paid}\n其他人每人应付：${perPerson}`;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast();
+            });
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
