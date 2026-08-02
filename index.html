@@ -855,6 +855,36 @@
                         container.appendChild(itemDiv);
                     });
 
+                    // 扫描截图部分
+                    if (history.length > 0) {
+                        const divider2 = document.createElement('div');
+                        divider2.style.cssText = 'border-top:2px solid #ddd;margin:25px 0 20px;';
+                        container.appendChild(divider2);
+
+                        const imgTitle = document.createElement('div');
+                        imgTitle.style.cssText = 'font-size:18px;font-weight:bold;color:#333;margin-bottom:15px;';
+                        imgTitle.textContent = '扫描截图';
+                        container.appendChild(imgTitle);
+
+                        history.forEach((record, i) => {
+                            if (!record.imageDataUrl) return;
+                            const scanDiv = document.createElement('div');
+                            scanDiv.style.cssText = 'margin-bottom:20px;';
+
+                            const scanLabel = document.createElement('div');
+                            scanLabel.style.cssText = 'font-size:14px;color:#666;margin-bottom:8px;';
+                            scanLabel.textContent = `第${i + 1}张`;
+                            scanDiv.appendChild(scanLabel);
+
+                            const img = document.createElement('img');
+                            img.src = record.imageDataUrl;
+                            img.style.cssText = 'max-width:500px;height:auto;display:block;border:1px solid #eee;border-radius:4px;';
+                            scanDiv.appendChild(img);
+
+                            container.appendChild(scanDiv);
+                        });
+                    }
+
                 } else {
                     // 简单模式和已付款模式：使用扫描记录
                     const total = history.reduce((sum, r) => sum + r.amount, 0);
@@ -1071,9 +1101,7 @@
             }
             // 只过滤出现3次及以上的（总计通常显示多次），保留1-2次的实际交易
             const validAmounts = standaloneAmounts.filter(a => amountCount[a] <= 2);
-            // 去重（同金额只保留一次）
-            const uniqueAmounts = [...new Set(validAmounts)];
-            if (uniqueAmounts.length > 1) return uniqueAmounts;
+            if (validAmounts.length > 1) return validAmounts;
 
             // 策略2：纸质小票风格 —— 行末带小数价格（如"红烧肉 28.50"）
             const skipKeywords = /累计|合计|总计|实付|应付|总价|需付|实收|小计|应收|收款|待付|付款|找零|优惠|折扣|服务费/;
