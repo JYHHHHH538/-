@@ -456,9 +456,9 @@
         <!-- 简单模式 -->
         <div id="simple" class="tab-content active">
             <button class="scan-btn" onclick="scanBill('simple')">
-                📸 扫描账单识别金额（可多选）
+                📸 扫描账单识别金额
             </button>
-            <input type="file" id="simpleScanInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event, 'simple')">
+            <input type="file" id="simpleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'simple')">
             <div class="preview-container">
                 <img id="simplePreview" class="preview-img">
                 <button class="delete-preview-btn" id="simpleDeleteBtn" onclick="deletePreview('simple')" title="删除图片">×</button>
@@ -494,9 +494,9 @@
         <!-- 多笔消费 -->
         <div id="multiple" class="tab-content">
             <button class="scan-btn" onclick="scanBill('multiple')">
-                📸 扫描账单识别金额（可多选）
+                📸 扫描账单识别金额
             </button>
-            <input type="file" id="multipleScanInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event, 'multiple')">
+            <input type="file" id="multipleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'multiple')">
             <div class="preview-container">
                 <img id="multiplePreview" class="preview-img">
                 <button class="delete-preview-btn" id="multipleDeleteBtn" onclick="deletePreview('multiple')" title="删除图片">×</button>
@@ -543,9 +543,9 @@
         <!-- 已付款模式 -->
         <div id="advance" class="tab-content">
             <button class="scan-btn" onclick="scanBill('advance')">
-                📸 扫描账单识别金额（可多选）
+                📸 扫描账单识别金额
             </button>
-            <input type="file" id="advanceScanInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event, 'advance')">
+            <input type="file" id="advanceScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'advance')">
             <div class="preview-container">
                 <img id="advancePreview" class="preview-img">
                 <button class="delete-preview-btn" id="advanceDeleteBtn" onclick="deletePreview('advance')" title="删除图片">×</button>
@@ -899,94 +899,66 @@
         }
 
         function handleImageUpload(event, mode) {
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
+            const file = event.target.files[0];
+            if (!file) return;
 
-            // 显示进度
             const progress = document.getElementById(mode + 'Progress');
-            progress.style.display = 'block';
-            progress.textContent = `正在处理 ${files.length} 张图片...`;
-
-            // 禁用扫描按钮
+            const preview = document.getElementById(mode + 'Preview');
+            const deleteBtn = document.getElementById(mode + 'DeleteBtn');
+            const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
             const scanBtns = document.querySelectorAll('.scan-btn');
+
+            // 显示预览图
+            const reader = new FileReader();
+            reader.onload = e => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                deleteBtn.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            if (nextScanBtn) nextScanBtn.style.display = 'none';
+            progress.style.display = 'block';
+            progress.style.background = '#f0f0f0';
+            progress.style.color = '#666';
+            progress.textContent = '正在识别中...';
             scanBtns.forEach(btn => btn.disabled = true);
 
-            // 批量处理所有图片
-            processMultipleImages(files, mode, progress, scanBtns);
-        }
-
-        async function processMultipleImages(files, mode, progress, scanBtns) {
-            let successCount = 0;
-            let failCount = 0;
-            const totalFiles = files.length;
-
-            for (let i = 0; i < totalFiles; i++) {
-                const file = files[i];
-                progress.textContent = `正在识别第 ${i + 1}/${totalFiles} 张...`;
-
+            const imgReader = new FileReader();
+            imgReader.onload = async e => {
+                const dataUrl = e.target.result;
+                const base64 = dataUrl.split(',')[1];
                 try {
-                    // 转换图片为Base64
-                    const dataUrl = await readFileAsDataURL(file);
-                    const base64 = dataUrl.split(',')[1];
-
-                    // 显示预览图（仅显示第一张）
-                    if (i === 0) {
-                        const preview = document.getElementById(mode + 'Preview');
-                        const deleteBtn = document.getElementById(mode + 'DeleteBtn');
-                        preview.src = dataUrl;
-                        preview.style.display = 'block';
-                        deleteBtn.style.display = 'block';
-                    }
-
-                    // 调用OCR识别
                     const result = await callOCRAPI(base64);
-
                     if (result.texts) {
                         const amount = extractAmount(result.texts);
                         if (amount && amount > 0) {
                             fillAmount(mode, amount);
                             addScanRecord(mode, amount, dataUrl);
-                            successCount++;
+                            progress.textContent = `✅ 识别成功！金额：¥${amount}`;
+                            progress.style.background = '#d4edda';
+                            progress.style.color = '#155724';
+                            if (nextScanBtn) nextScanBtn.style.display = 'block';
                         } else {
-                            failCount++;
+                            throw new Error('未识别到有效金额');
                         }
                     } else {
-                        failCount++;
+                        throw new Error(result.error || '识别失败');
                     }
                 } catch (error) {
-                    console.error(`图片 ${i + 1} 识别失败:`, error);
-                    failCount++;
+                    progress.textContent = '❌ 识别失败，请重试或手动输入';
+                    progress.style.background = '#f8d7da';
+                    progress.style.color = '#721c24';
+                } finally {
+                    scanBtns.forEach(btn => btn.disabled = false);
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                        progress.style.background = '#f0f0f0';
+                        progress.style.color = '#666';
+                    }, 3000);
                 }
-            }
-
-            // 显示最终结果
-            if (successCount > 0) {
-                progress.textContent = `✅ 成功识别 ${successCount} 张` + (failCount > 0 ? `，失败 ${failCount} 张` : '');
-                progress.style.background = '#d4edda';
-                progress.style.color = '#155724';
-                const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
-                if (nextScanBtn) nextScanBtn.style.display = 'block';
-            } else {
-                progress.textContent = '❌ 全部识别失败，请重试或手动输入';
-                progress.style.background = '#f8d7da';
-                progress.style.color = '#721c24';
-            }
-
-            scanBtns.forEach(btn => btn.disabled = false);
-            setTimeout(() => {
-                progress.style.display = 'none';
-                progress.style.background = '#f0f0f0';
-                progress.style.color = '#666';
-            }, 3000);
-        }
-
-        function readFileAsDataURL(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+            };
+            imgReader.readAsDataURL(file);
         }
 
         async function callOCRAPI(imageBase64) {
