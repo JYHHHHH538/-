@@ -3,9 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <title>AA制分账计算器</title>
     <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -769,17 +766,7 @@
 
         async function exportScanPDF(mode) {
             const history = scanHistories[mode];
-            if (history.length === 0 && mode !== 'multiple') return;
-
-            // 对于多笔消费模式，检查是否有填写的消费项目
-            if (mode === 'multiple') {
-                const expenseItems = document.querySelectorAll('#expenseList .expense-item');
-                const hasValidExpense = Array.from(expenseItems).some(item => {
-                    const amount = parseFloat(item.querySelector('.expense-amount').value);
-                    return amount > 0;
-                });
-                if (!hasValidExpense && history.length === 0) return;
-            }
+            if (history.length === 0) return;
 
             const btn = document.querySelector(`#${mode}ScanHistory .export-pdf-btn`);
             btn.disabled = true;
@@ -803,101 +790,47 @@
                 title.textContent = '账单汇总';
                 container.appendChild(title);
 
-                // 对于多笔消费模式，使用消费列表而非扫描记录
-                if (mode === 'multiple') {
-                    // 收集消费项目
-                    const expenseItems = document.querySelectorAll('#expenseList .expense-item');
-                    const expenses = [];
-                    let total = 0;
+                // 总金额
+                const total = history.reduce((sum, r) => sum + r.amount, 0);
+                const totalDiv = document.createElement('div');
+                totalDiv.style.cssText = 'margin-bottom:10px;';
+                totalDiv.innerHTML = `<span style="font-size:36px;color:#007bff;font-weight:bold;">¥${total.toFixed(2)}</span> <span style="font-size:14px;color:#888;margin-left:10px;">共${history.length}笔</span>`;
+                container.appendChild(totalDiv);
 
-                    expenseItems.forEach(item => {
-                        const name = item.querySelector('.expense-name').value.trim() || '未命名';
-                        const amount = parseFloat(item.querySelector('.expense-amount').value);
-                        if (amount > 0) {
-                            expenses.push({ name, amount });
-                            total += amount;
-                        }
-                    });
+                // 分割线
+                const divider = document.createElement('div');
+                divider.style.cssText = 'border-top:2px solid #ddd;margin:20px 0;';
+                container.appendChild(divider);
 
-                    if (expenses.length === 0) return;
+                // 账单列表
+                for (let i = 0; i < history.length; i++) {
+                    const { amount, imageDataUrl } = history[i];
 
-                    // 总金额
-                    const totalDiv = document.createElement('div');
-                    totalDiv.style.cssText = 'margin-bottom:10px;';
-                    totalDiv.innerHTML = `<span style="font-size:36px;color:#007bff;font-weight:bold;">¥${total.toFixed(2)}</span> <span style="font-size:14px;color:#888;margin-left:10px;">共${expenses.length}笔</span>`;
-                    container.appendChild(totalDiv);
+                    const itemDiv = document.createElement('div');
+                    itemDiv.style.cssText = 'margin-bottom:25px;';
 
-                    // 分割线
-                    const divider = document.createElement('div');
-                    divider.style.cssText = 'border-top:2px solid #ddd;margin:20px 0;';
-                    container.appendChild(divider);
+                    // 序号和金额
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-size:16px;margin-bottom:8px;';
+                    header.innerHTML = `<span style="color:#666;">${i + 1}.</span> <span style="color:#28a745;font-weight:bold;">¥${amount.toFixed(2)}</span>`;
+                    itemDiv.appendChild(header);
 
-                    // 消费明细列表
-                    const listTitle = document.createElement('div');
-                    listTitle.style.cssText = 'font-size:18px;font-weight:bold;color:#333;margin-bottom:15px;';
-                    listTitle.textContent = '消费明细';
-                    container.appendChild(listTitle);
-
-                    expenses.forEach((expense, i) => {
-                        const itemDiv = document.createElement('div');
-                        itemDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eee;';
-
-                        const nameDiv = document.createElement('div');
-                        nameDiv.style.cssText = 'font-size:16px;color:#333;';
-                        nameDiv.innerHTML = `<span style="color:#999;margin-right:8px;">${i + 1}.</span>${expense.name}`;
-
-                        const amountDiv = document.createElement('div');
-                        amountDiv.style.cssText = 'font-size:18px;font-weight:bold;color:#28a745;';
-                        amountDiv.textContent = `¥${expense.amount.toFixed(2)}`;
-
-                        itemDiv.appendChild(nameDiv);
-                        itemDiv.appendChild(amountDiv);
-                        container.appendChild(itemDiv);
-                    });
-
-                } else {
-                    // 简单模式和已付款模式：使用扫描记录
-                    const total = history.reduce((sum, r) => sum + r.amount, 0);
-                    const totalDiv = document.createElement('div');
-                    totalDiv.style.cssText = 'margin-bottom:10px;';
-                    totalDiv.innerHTML = `<span style="font-size:36px;color:#007bff;font-weight:bold;">¥${total.toFixed(2)}</span> <span style="font-size:14px;color:#888;margin-left:10px;">共${history.length}笔</span>`;
-                    container.appendChild(totalDiv);
-
-                    // 分割线
-                    const divider = document.createElement('div');
-                    divider.style.cssText = 'border-top:2px solid #ddd;margin:20px 0;';
-                    container.appendChild(divider);
-
-                    // 账单列表
-                    for (let i = 0; i < history.length; i++) {
-                        const { amount, imageDataUrl } = history[i];
-
-                        const itemDiv = document.createElement('div');
-                        itemDiv.style.cssText = 'margin-bottom:25px;';
-
-                        // 序号和金额
-                        const header = document.createElement('div');
-                        header.style.cssText = 'font-size:16px;margin-bottom:8px;';
-                        header.innerHTML = `<span style="color:#666;">${i + 1}.</span> <span style="color:#28a745;font-weight:bold;">¥${amount.toFixed(2)}</span>`;
-                        itemDiv.appendChild(header);
-
-                        // 图片
-                        if (imageDataUrl) {
-                            const img = document.createElement('img');
-                            img.src = imageDataUrl;
-                            img.style.cssText = 'max-width:500px;height:auto;display:block;';
-                            itemDiv.appendChild(img);
-                        }
-
-                        // 分隔线
-                        if (i < history.length - 1) {
-                            const separator = document.createElement('div');
-                            separator.style.cssText = 'border-bottom:1px solid #eee;margin-top:15px;';
-                            itemDiv.appendChild(separator);
-                        }
-
-                        container.appendChild(itemDiv);
+                    // 图片
+                    if (imageDataUrl) {
+                        const img = document.createElement('img');
+                        img.src = imageDataUrl;
+                        img.style.cssText = 'max-width:500px;height:auto;display:block;';
+                        itemDiv.appendChild(img);
                     }
+
+                    // 分隔线
+                    if (i < history.length - 1) {
+                        const separator = document.createElement('div');
+                        separator.style.cssText = 'border-bottom:1px solid #eee;margin-top:15px;';
+                        itemDiv.appendChild(separator);
+                    }
+
+                    container.appendChild(itemDiv);
                 }
 
                 document.body.appendChild(container);
@@ -969,185 +902,137 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const progress = document.getElementById(mode + 'Progress');
+            // 显示预览图和删除按钮
             const preview = document.getElementById(mode + 'Preview');
             const deleteBtn = document.getElementById(mode + 'DeleteBtn');
-            const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
-            const scanBtns = document.querySelectorAll('.scan-btn');
-
-            // 显示预览图
             const reader = new FileReader();
-            reader.onload = e => {
+            reader.onload = function(e) {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
                 deleteBtn.style.display = 'block';
             };
             reader.readAsDataURL(file);
 
+            // 隐藏"扫描下一张"按钮
+            const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
             if (nextScanBtn) nextScanBtn.style.display = 'none';
+
+            // 显示进度
+            const progress = document.getElementById(mode + 'Progress');
             progress.style.display = 'block';
-            progress.style.background = '#f0f0f0';
-            progress.style.color = '#666';
             progress.textContent = '正在识别中...';
+
+            // 禁用扫描按钮
+            const scanBtns = document.querySelectorAll('.scan-btn');
             scanBtns.forEach(btn => btn.disabled = true);
 
+            // 转换图片为Base64
             const imgReader = new FileReader();
-            imgReader.onload = async e => {
+            imgReader.onload = function(e) {
                 const dataUrl = e.target.result;
                 const base64 = dataUrl.split(',')[1];
-                try {
-                    const result = await callOCRAPI(base64);
-                    if (result.texts) {
-                        let handled = false;
-
-                        // 多笔消费模式：尝试逐行提取每笔金额
-                        if (mode === 'multiple' && result.words && result.words.length > 0) {
-                            const lineItems = extractLineItems(result.words);
-                            if (lineItems.length > 1) {
-                                lineItems.forEach(amt => fillAmount('multiple', amt));
-                                const total = Math.round(lineItems.reduce((s, n) => s + n, 0) * 100) / 100;
-                                addScanRecord(mode, total, dataUrl);
-                                progress.textContent = `✅ 识别到 ${lineItems.length} 笔消费，合计 ¥${total}`;
-                                progress.style.background = '#d4edda';
-                                progress.style.color = '#155724';
-                                if (nextScanBtn) nextScanBtn.style.display = 'block';
-                                handled = true;
-                            }
-                        }
-
-                        if (!handled) {
-                            const amount = extractAmount(result.texts);
-                            if (amount && amount > 0) {
-                                fillAmount(mode, amount);
-                                addScanRecord(mode, amount, dataUrl);
-                                progress.textContent = `✅ 识别成功！金额：¥${amount}`;
-                                progress.style.background = '#d4edda';
-                                progress.style.color = '#155724';
-                                if (nextScanBtn) nextScanBtn.style.display = 'block';
-                            } else {
-                                throw new Error('未识别到有效金额');
-                            }
-                        }
-                    } else {
-                        throw new Error(result.error || '识别失败');
-                    }
-                } catch (error) {
-                    progress.textContent = '❌ 识别失败，请重试或手动输入';
-                    progress.style.background = '#f8d7da';
-                    progress.style.color = '#721c24';
-                } finally {
-                    scanBtns.forEach(btn => btn.disabled = false);
-                    setTimeout(() => {
-                        progress.style.display = 'none';
-                        progress.style.background = '#f0f0f0';
-                        progress.style.color = '#666';
-                    }, 3000);
-                }
+                recognizeWithTencentOCR(base64, dataUrl, mode, progress, scanBtns);
             };
             imgReader.readAsDataURL(file);
         }
 
-        async function callOCRAPI(imageBase64) {
-            const response = await fetch('/api/ocr', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64 })
-            });
-            return await response.json();
-        }
+        async function recognizeWithTencentOCR(imageBase64, imageDataUrl, mode, progress, scanBtns) {
+            try {
+                progress.textContent = '正在识别中...';
 
-        function extractLineItems(words) {
-            // 策略1：支付截图风格 —— 整行就是 ¥XX.XX 的独立金额
-            // 过滤出现3次及以上的金额（通常是总计/界面显示重复），保留1-2次的
-            const standaloneAmounts = [];
-            const amountCount = {};
-            for (const line of words) {
-                const match = line.trim().match(/^[¥￥]\s*(\d+(?:\.\d{1,2})?)$/);
-                if (match) {
-                    const amount = parseFloat(match[1]);
-                    amountCount[amount] = (amountCount[amount] || 0) + 1;
-                    standaloneAmounts.push(amount);
-                }
-            }
-            // 只过滤出现3次及以上的（总计通常显示多次），保留1-2次的实际交易
-            const validAmounts = standaloneAmounts.filter(a => amountCount[a] <= 2);
-            // 去重（同金额只保留一次）
-            const uniqueAmounts = [...new Set(validAmounts)];
-            if (uniqueAmounts.length > 1) return uniqueAmounts;
+                const response = await fetch('/api/ocr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageBase64 })
+                });
 
-            // 策略2：纸质小票风格 —— 行末带小数价格（如"红烧肉 28.50"）
-            const skipKeywords = /累计|合计|总计|实付|应付|总价|需付|实收|小计|应收|收款|待付|付款|找零|优惠|折扣|服务费/;
-            const receiptAmounts = [];
-            for (const line of words) {
-                if (!line || !line.trim()) continue;
-                if (skipKeywords.test(line)) continue;
-                // 跳过纯时间行（如 13:08 或 21:50）
-                if (/^\d{1,2}[：:]\d{2}$/.test(line.trim())) continue;
-                if (/\d{1,2}[：:]\d{2}/.test(line) && line.length < 15) continue;
-                const match = line.trim().match(/(\d+\.\d{1,2})\s*$/);
-                if (!match) continue;
-                const amount = parseFloat(match[1]);
-                if (amount >= 0.5 && amount < 10000) receiptAmounts.push(amount);
-            }
-            return receiptAmounts.length > 1 ? receiptAmounts : [];
-        }
+                const result = await response.json();
 
-        function extractAmount(texts) {
-            let amount = null;
+                if (result.texts) {
+                    const texts = result.texts;
 
-            // 策略1: 合计/实付等关键词后的金额
-            const kwMatch = texts.match(
-                /(?:合计|总计|实付|应付|总价|金额|需付|实收|小计|应收|收款|待付|付款)[：:=\s]*[¥￥]?\s*(\d+(?:\.\d{1,2})?)/
-            );
-            if (kwMatch) amount = parseFloat(kwMatch[1]);
+                    function fillAmount(amount) {
+                        if (mode === 'simple') {
+                            document.getElementById('totalAmount').value = amount;
+                            calculateSimple();
+                        } else if (mode === 'multiple') {
+                            const firstInput = document.querySelector('#expenseList .expense-amount');
+                            if (firstInput && !firstInput.value) {
+                                firstInput.value = amount;
+                            } else {
+                                addExpense();
+                                const inputs = document.querySelectorAll('#expenseList .expense-amount');
+                                const lastInput = inputs[inputs.length - 1];
+                                if (lastInput) lastInput.value = amount;
+                            }
+                            calculateMultiple();
+                        } else if (mode === 'advance') {
+                            document.getElementById('advTotalAmount').value = amount;
+                            calculateAdvance();
+                        }
+                    }
 
-            // 策略2: ¥/￥ 符号旁边的数字
-            if (!amount) {
-                const currencyMatches = [...texts.matchAll(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/g)]
-                    .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
-                if (currencyMatches.length === 1) {
-                    amount = currencyMatches[0];
-                } else if (currencyMatches.length > 1) {
-                    amount = currencyMatches.reduce((sum, n) => sum + n, 0);
-                    amount = Math.round(amount * 100) / 100;
-                }
-            }
+                    let amount = null;
 
-            // 策略3: 带两位小数的数字，取最后出现的
-            if (!amount) {
-                const decimals = [...texts.matchAll(/(?<![.\d])(\d{1,5}\.\d{2})(?![.\d])/g)]
-                    .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
-                if (decimals.length > 0) amount = decimals[decimals.length - 1];
-            }
+                    // 策略1: 合计/实付等关键词后的金额（避免单项+总计重复相加）
+                    const kwMatch = texts.match(
+                        /(?:合计|总计|实付|应付|总价|金额|需付|实收|小计|应收|收款|待付|付款)[：:=\s]*[¥￥]?\s*(\d+(?:\.\d{1,2})?)/
+                    );
+                    if (kwMatch) amount = parseFloat(kwMatch[1]);
 
-            // 策略4: 整数金额兜底
-            if (!amount) {
-                const ints = [...texts.matchAll(/(?<![.\d])(\d{1,5})(?![.\d])/g)]
-                    .map(m => parseFloat(m[1])).filter(n => n >= 1 && n <= 9999);
-                if (ints.length > 0) amount = ints[ints.length - 1];
-            }
+                    // 策略2: ¥/￥ 符号旁边的数字，一个用一个，多个全部相加
+                    if (!amount) {
+                        const currencyMatches = [...texts.matchAll(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/g)]
+                            .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
+                        if (currencyMatches.length === 1) {
+                            amount = currencyMatches[0];
+                        } else if (currencyMatches.length > 1) {
+                            amount = currencyMatches.reduce((sum, n) => sum + n, 0);
+                            amount = Math.round(amount * 100) / 100; // 避免浮点误差
+                        }
+                    }
 
-            return amount;
-        }
+                    // 策略3: 带两位小数的数字，取最后出现的
+                    if (!amount) {
+                        const decimals = [...texts.matchAll(/(?<![.\d])(\d{1,5}\.\d{2})(?![.\d])/g)]
+                            .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
+                        if (decimals.length > 0) amount = decimals[decimals.length - 1];
+                    }
 
-        function fillAmount(mode, amount) {
-            if (mode === 'simple') {
-                document.getElementById('totalAmount').value = amount;
-                calculateSimple();
-            } else if (mode === 'multiple') {
-                const firstInput = document.querySelector('#expenseList .expense-amount');
-                if (firstInput && !firstInput.value) {
-                    firstInput.value = amount;
+                    // 策略4: 整数金额兜底
+                    if (!amount) {
+                        const ints = [...texts.matchAll(/(?<![.\d])(\d{1,5})(?![.\d])/g)]
+                            .map(m => parseFloat(m[1])).filter(n => n >= 1 && n <= 9999);
+                        if (ints.length > 0) amount = ints[ints.length - 1];
+                    }
+
+                    if (amount && amount > 0) {
+                        fillAmount(amount);
+                        addScanRecord(mode, amount, imageDataUrl);
+                        progress.textContent = `✅ 识别成功！金额：¥${amount}`;
+                        progress.style.background = '#d4edda';
+                        progress.style.color = '#155724';
+                        const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
+                        if (nextScanBtn) nextScanBtn.style.display = 'block';
+                    } else {
+                        throw new Error('未识别到有效金额');
+                    }
                 } else {
-                    addExpense();
-                    const inputs = document.querySelectorAll('#expenseList .expense-amount');
-                    const lastInput = inputs[inputs.length - 1];
-                    if (lastInput) lastInput.value = amount;
+                    throw new Error(result.error || result.details || '识别失败');
                 }
-                calculateMultiple();
-            } else if (mode === 'advance') {
-                document.getElementById('advTotalAmount').value = amount;
-                calculateAdvance();
+
+            } catch (error) {
+                console.error('OCR识别失败:', error);
+                progress.textContent = '❌ 识别失败，请重试或手动输入';
+                progress.style.background = '#f8d7da';
+                progress.style.color = '#721c24';
+            } finally {
+                scanBtns.forEach(btn => btn.disabled = false);
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    progress.style.background = '#f0f0f0';
+                    progress.style.color = '#666';
+                }, 3000);
             }
         }
     </script>
