@@ -453,7 +453,6 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('simple')">简单模式</button>
             <button class="tab" onclick="switchTab('multiple')">多笔消费</button>
-            <button class="tab" onclick="switchTab('advance')">已付款</button>
         </div>
 
         <!-- 简单模式 -->
@@ -543,48 +542,6 @@
             </div>
         </div>
 
-        <!-- 已付款模式 -->
-        <div id="advance" class="tab-content">
-            <button class="scan-btn" onclick="scanBill('advance')">
-                📸 扫描账单识别金额
-            </button>
-            <input type="file" id="advanceScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'advance')">
-            <div class="preview-container">
-                <img id="advancePreview" class="preview-img">
-                <button class="delete-preview-btn" id="advanceDeleteBtn" onclick="deletePreview('advance')" title="删除图片">×</button>
-            </div>
-            <div id="advanceProgress" class="progress">正在识别中...</div>
-            <button class="next-scan-btn" id="advanceNextScanBtn" onclick="nextScan('advance')">📷 扫描下一张</button>
-
-            <div id="advanceScanHistory" class="scan-history">
-                <div class="scan-history-title">📋 扫描记录</div>
-                <div id="advanceScanList"></div>
-                <div class="scan-history-total">
-                    <span>累计总额：</span>
-                    <span class="amount" id="advanceScanTotal">¥0.00</span>
-                </div>
-                <button class="export-pdf-btn" onclick="exportScanPDF('advance')">📄 导出PDF账单</button>
-            </div>
-
-            <div class="input-group">
-                <label>总金额（元）</label>
-                <input type="number" id="advTotalAmount" placeholder="例如：520" oninput="calculateAdvance()">
-            </div>
-            <div class="input-group">
-                <label>参与人数</label>
-                <input type="number" id="advPeopleCount" placeholder="例如：4" oninput="calculateAdvance()">
-            </div>
-            <div class="input-group">
-                <label>已付款金额（元）</label>
-                <input type="number" id="paidAmount" placeholder="例如：300" oninput="calculateAdvance()">
-            </div>
-            <div class="result" id="advanceResult" style="display:none;">
-                <div class="result-label">其他人每人应付给垫付者</div>
-                <div class="result-amount" id="advPerPerson">¥0.00</div>
-                <div style="margin-top: 10px; color: #666; font-size: 14px;" id="advDetail"></div>
-                <button class="copy-btn" onclick="copyResult('advance')">复制结果</button>
-            </div>
-        </div>
     </div>
 
     <div class="toast" id="toast">已复制到剪贴板！</div>
@@ -659,25 +616,6 @@
             }
         }
 
-        function calculateAdvance() {
-            const total = parseFloat(document.getElementById('advTotalAmount').value);
-            const people = parseInt(document.getElementById('advPeopleCount').value);
-            const paid = parseFloat(document.getElementById('paidAmount').value);
-
-            if (total > 0 && people > 0 && paid >= 0) {
-                const perPerson = total / people;
-                const owedToPayer = perPerson - (paid / people);
-                const othersOwe = (total - paid) / (people - 1);
-
-                document.getElementById('advPerPerson').textContent = `¥${othersOwe.toFixed(2)}`;
-                document.getElementById('advDetail').textContent =
-                    `（总额¥${total} ÷ ${people}人 = 每人¥${perPerson.toFixed(2)}，已付¥${paid}）`;
-                document.getElementById('advanceResult').style.display = 'block';
-            } else {
-                document.getElementById('advanceResult').style.display = 'none';
-            }
-        }
-
         function copyResult(mode) {
             let text = '';
 
@@ -691,12 +629,6 @@
                 const people = document.getElementById('multiplePeople').value;
                 const perPerson = document.getElementById('multiplePerPerson').textContent;
                 text = `总消费：${total}\n参与人数：${people}人\n每人应付：${perPerson}`;
-            } else if (mode === 'advance') {
-                const total = document.getElementById('advTotalAmount').value;
-                const people = document.getElementById('advPeopleCount').value;
-                const paid = document.getElementById('paidAmount').value;
-                const perPerson = document.getElementById('advPerPerson').textContent;
-                text = `总消费：¥${total}\n参与人数：${people}人\n已垫付：¥${paid}\n其他人每人应付：${perPerson}`;
             }
 
             navigator.clipboard.writeText(text).then(() => {
@@ -713,7 +645,7 @@
         }
 
         // 扫描记录数据 (each entry: {amount, imageDataUrl})
-        const scanHistories = { simple: [], multiple: [], advance: [] };
+        const scanHistories = { simple: [], multiple: [] };
 
         function addScanRecord(mode, amount, imageDataUrl) {
             const history = scanHistories[mode];
@@ -760,9 +692,6 @@
                 if (mode === 'simple') {
                     document.getElementById('totalAmount').value = total.toFixed(2);
                     calculateSimple();
-                } else if (mode === 'advance') {
-                    document.getElementById('advTotalAmount').value = total.toFixed(2);
-                    calculateAdvance();
                 }
             }
         }
@@ -886,7 +815,7 @@
                     }
 
                 } else {
-                    // 简单模式和已付款模式：使用扫描记录
+                    // 简单模式：使用扫描记录
                     const total = history.reduce((sum, r) => sum + r.amount, 0);
                     const totalDiv = document.createElement('div');
                     totalDiv.style.cssText = 'margin-bottom:10px;';
@@ -1173,9 +1102,6 @@
                     if (lastInput) lastInput.value = amount;
                 }
                 calculateMultiple();
-            } else if (mode === 'advance') {
-                document.getElementById('advTotalAmount').value = amount;
-                calculateAdvance();
             }
         }
     </script>
