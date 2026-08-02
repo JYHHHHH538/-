@@ -58,7 +58,8 @@ exports.handler = async (event) => {
 
         if (result.words_result) {
             const texts = result.words_result.map(item => item.words).join(' ');
-            return { statusCode: 200, headers, body: JSON.stringify({ texts }) };
+            const words = result.words_result.map(item => item.words);
+            return { statusCode: 200, headers, body: JSON.stringify({ texts, words }) };
         } else {
             return { statusCode: 500, headers, body: JSON.stringify({ error: result.error_msg || '识别失败' }) };
         }
