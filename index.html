@@ -934,16 +934,25 @@
                 try {
                     const result = await callOCRAPI(base64);
                     if (result.texts) {
-                        // DEBUG
-                        alert(`mode=${mode}\nwords=${result.words ? result.words.length+'行' : 'null'}\ntexts前50字: ${result.texts.substring(0,50)}`);
+                        // DEBUG: 显示调试信息（不用alert，在页面上直接显示）
+                        const debugDiv = document.createElement('div');
+                        debugDiv.id = 'debugInfo';
+                        debugDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff0;color:#000;padding:10px;z-index:9999;font-size:12px;max-height:200px;overflow:auto;';
+                        debugDiv.innerHTML = `<strong>调试信息</strong><br>mode=${mode}<br>words=${result.words ? result.words.length+'行' : 'null'}<br>texts前50字: ${result.texts.substring(0,50)}`;
+                        document.body.insertBefore(debugDiv, document.body.firstChild);
+                        setTimeout(() => debugDiv.remove(), 10000);
                         // END DEBUG
                         let handled = false;
 
                         // 多笔消费模式：尝试逐行提取每笔金额
                         if (mode === 'multiple' && result.words && result.words.length > 0) {
                             const lineItems = extractLineItems(result.words);
-                            // DEBUG: 弹窗显示调试信息
-                            alert(`调试信息:\n共${result.words.length}行\n提取${lineItems.length}笔\n金额: [${lineItems.join(', ')}]\n\n前8行:\n${result.words.slice(0,8).join('\n')}`);
+                            // DEBUG: 显示提取结果
+                            const debugDiv2 = document.createElement('div');
+                            debugDiv2.style.cssText = 'position:fixed;top:60px;left:0;right:0;background:#0f0;color:#000;padding:10px;z-index:9998;font-size:12px;max-height:300px;overflow:auto;';
+                            debugDiv2.innerHTML = `<strong>提取结果</strong><br>共${result.words.length}行<br>提取${lineItems.length}笔<br>金额: [${lineItems.join(', ')}]<br><br>前8行:<br>${result.words.slice(0,8).join('<br>')}`;
+                            document.body.insertBefore(debugDiv2, document.body.firstChild);
+                            setTimeout(() => debugDiv2.remove(), 15000);
                             // END DEBUG
                             if (lineItems.length > 1) {
                                 lineItems.forEach(amt => fillAmount('multiple', amt));
