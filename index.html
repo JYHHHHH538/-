@@ -456,9 +456,9 @@
         <!-- 简单模式 -->
         <div id="simple" class="tab-content active">
             <button class="scan-btn" onclick="scanBill('simple')">
-                📸 扫描账单识别金额
+                📸 扫描账单识别金额（可多选）
             </button>
-            <input type="file" id="simpleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'simple')">
+            <input type="file" id="simpleScanInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event, 'simple')">
             <div class="preview-container">
                 <img id="simplePreview" class="preview-img">
                 <button class="delete-preview-btn" id="simpleDeleteBtn" onclick="deletePreview('simple')" title="删除图片">×</button>
@@ -494,9 +494,9 @@
         <!-- 多笔消费 -->
         <div id="multiple" class="tab-content">
             <button class="scan-btn" onclick="scanBill('multiple')">
-                📸 扫描账单识别金额
+                📸 扫描账单识别金额（可多选）
             </button>
-            <input type="file" id="multipleScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'multiple')">
+            <input type="file" id="multipleScanInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event, 'multiple')">
             <div class="preview-container">
                 <img id="multiplePreview" class="preview-img">
                 <button class="delete-preview-btn" id="multipleDeleteBtn" onclick="deletePreview('multiple')" title="删除图片">×</button>
@@ -543,9 +543,9 @@
         <!-- 已付款模式 -->
         <div id="advance" class="tab-content">
             <button class="scan-btn" onclick="scanBill('advance')">
-                📸 扫描账单识别金额
+                📸 扫描账单识别金额（可多选）
             </button>
-            <input type="file" id="advanceScanInput" accept="image/*" style="display:none" onchange="handleImageUpload(event, 'advance')">
+            <input type="file" id="advanceScanInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event, 'advance')">
             <div class="preview-container">
                 <img id="advancePreview" class="preview-img">
                 <button class="delete-preview-btn" id="advanceDeleteBtn" onclick="deletePreview('advance')" title="删除图片">×</button>
@@ -899,140 +899,161 @@
         }
 
         function handleImageUpload(event, mode) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            // 显示预览图和删除按钮
-            const preview = document.getElementById(mode + 'Preview');
-            const deleteBtn = document.getElementById(mode + 'DeleteBtn');
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                deleteBtn.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-
-            // 隐藏"扫描下一张"按钮
-            const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
-            if (nextScanBtn) nextScanBtn.style.display = 'none';
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
 
             // 显示进度
             const progress = document.getElementById(mode + 'Progress');
             progress.style.display = 'block';
-            progress.textContent = '正在识别中...';
+            progress.textContent = `正在处理 ${files.length} 张图片...`;
 
             // 禁用扫描按钮
             const scanBtns = document.querySelectorAll('.scan-btn');
             scanBtns.forEach(btn => btn.disabled = true);
 
-            // 转换图片为Base64
-            const imgReader = new FileReader();
-            imgReader.onload = function(e) {
-                const dataUrl = e.target.result;
-                const base64 = dataUrl.split(',')[1];
-                recognizeWithTencentOCR(base64, dataUrl, mode, progress, scanBtns);
-            };
-            imgReader.readAsDataURL(file);
+            // 批量处理所有图片
+            processMultipleImages(files, mode, progress, scanBtns);
         }
 
-        async function recognizeWithTencentOCR(imageBase64, imageDataUrl, mode, progress, scanBtns) {
-            try {
-                progress.textContent = '正在识别中...';
+        async function processMultipleImages(files, mode, progress, scanBtns) {
+            let successCount = 0;
+            let failCount = 0;
+            const totalFiles = files.length;
 
-                const response = await fetch('/api/ocr', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageBase64 })
-                });
+            for (let i = 0; i < totalFiles; i++) {
+                const file = files[i];
+                progress.textContent = `正在识别第 ${i + 1}/${totalFiles} 张...`;
 
-                const result = await response.json();
+                try {
+                    // 转换图片为Base64
+                    const dataUrl = await readFileAsDataURL(file);
+                    const base64 = dataUrl.split(',')[1];
 
-                if (result.texts) {
-                    const texts = result.texts;
+                    // 显示预览图（仅显示第一张）
+                    if (i === 0) {
+                        const preview = document.getElementById(mode + 'Preview');
+                        const deleteBtn = document.getElementById(mode + 'DeleteBtn');
+                        preview.src = dataUrl;
+                        preview.style.display = 'block';
+                        deleteBtn.style.display = 'block';
+                    }
 
-                    function fillAmount(amount) {
-                        if (mode === 'simple') {
-                            document.getElementById('totalAmount').value = amount;
-                            calculateSimple();
-                        } else if (mode === 'multiple') {
-                            const firstInput = document.querySelector('#expenseList .expense-amount');
-                            if (firstInput && !firstInput.value) {
-                                firstInput.value = amount;
-                            } else {
-                                addExpense();
-                                const inputs = document.querySelectorAll('#expenseList .expense-amount');
-                                const lastInput = inputs[inputs.length - 1];
-                                if (lastInput) lastInput.value = amount;
-                            }
-                            calculateMultiple();
-                        } else if (mode === 'advance') {
-                            document.getElementById('advTotalAmount').value = amount;
-                            calculateAdvance();
+                    // 调用OCR识别
+                    const result = await callOCRAPI(base64);
+
+                    if (result.texts) {
+                        const amount = extractAmount(result.texts);
+                        if (amount && amount > 0) {
+                            fillAmount(mode, amount);
+                            addScanRecord(mode, amount, dataUrl);
+                            successCount++;
+                        } else {
+                            failCount++;
                         }
-                    }
-
-                    let amount = null;
-
-                    // 策略1: 合计/实付等关键词后的金额（避免单项+总计重复相加）
-                    const kwMatch = texts.match(
-                        /(?:合计|总计|实付|应付|总价|金额|需付|实收|小计|应收|收款|待付|付款)[：:=\s]*[¥￥]?\s*(\d+(?:\.\d{1,2})?)/
-                    );
-                    if (kwMatch) amount = parseFloat(kwMatch[1]);
-
-                    // 策略2: ¥/￥ 符号旁边的数字，一个用一个，多个全部相加
-                    if (!amount) {
-                        const currencyMatches = [...texts.matchAll(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/g)]
-                            .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
-                        if (currencyMatches.length === 1) {
-                            amount = currencyMatches[0];
-                        } else if (currencyMatches.length > 1) {
-                            amount = currencyMatches.reduce((sum, n) => sum + n, 0);
-                            amount = Math.round(amount * 100) / 100; // 避免浮点误差
-                        }
-                    }
-
-                    // 策略3: 带两位小数的数字，取最后出现的
-                    if (!amount) {
-                        const decimals = [...texts.matchAll(/(?<![.\d])(\d{1,5}\.\d{2})(?![.\d])/g)]
-                            .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
-                        if (decimals.length > 0) amount = decimals[decimals.length - 1];
-                    }
-
-                    // 策略4: 整数金额兜底
-                    if (!amount) {
-                        const ints = [...texts.matchAll(/(?<![.\d])(\d{1,5})(?![.\d])/g)]
-                            .map(m => parseFloat(m[1])).filter(n => n >= 1 && n <= 9999);
-                        if (ints.length > 0) amount = ints[ints.length - 1];
-                    }
-
-                    if (amount && amount > 0) {
-                        fillAmount(amount);
-                        addScanRecord(mode, amount, imageDataUrl);
-                        progress.textContent = `✅ 识别成功！金额：¥${amount}`;
-                        progress.style.background = '#d4edda';
-                        progress.style.color = '#155724';
-                        const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
-                        if (nextScanBtn) nextScanBtn.style.display = 'block';
                     } else {
-                        throw new Error('未识别到有效金额');
+                        failCount++;
                     }
-                } else {
-                    throw new Error(result.error || result.details || '识别失败');
+                } catch (error) {
+                    console.error(`图片 ${i + 1} 识别失败:`, error);
+                    failCount++;
                 }
+            }
 
-            } catch (error) {
-                console.error('OCR识别失败:', error);
-                progress.textContent = '❌ 识别失败，请重试或手动输入';
+            // 显示最终结果
+            if (successCount > 0) {
+                progress.textContent = `✅ 成功识别 ${successCount} 张` + (failCount > 0 ? `，失败 ${failCount} 张` : '');
+                progress.style.background = '#d4edda';
+                progress.style.color = '#155724';
+                const nextScanBtn = document.getElementById(mode + 'NextScanBtn');
+                if (nextScanBtn) nextScanBtn.style.display = 'block';
+            } else {
+                progress.textContent = '❌ 全部识别失败，请重试或手动输入';
                 progress.style.background = '#f8d7da';
                 progress.style.color = '#721c24';
-            } finally {
-                scanBtns.forEach(btn => btn.disabled = false);
-                setTimeout(() => {
-                    progress.style.display = 'none';
-                    progress.style.background = '#f0f0f0';
-                    progress.style.color = '#666';
-                }, 3000);
+            }
+
+            scanBtns.forEach(btn => btn.disabled = false);
+            setTimeout(() => {
+                progress.style.display = 'none';
+                progress.style.background = '#f0f0f0';
+                progress.style.color = '#666';
+            }, 3000);
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function callOCRAPI(imageBase64) {
+            const response = await fetch('/api/ocr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageBase64 })
+            });
+            return await response.json();
+        }
+
+        function extractAmount(texts) {
+            let amount = null;
+
+            // 策略1: 合计/实付等关键词后的金额
+            const kwMatch = texts.match(
+                /(?:合计|总计|实付|应付|总价|金额|需付|实收|小计|应收|收款|待付|付款)[：:=\s]*[¥￥]?\s*(\d+(?:\.\d{1,2})?)/
+            );
+            if (kwMatch) amount = parseFloat(kwMatch[1]);
+
+            // 策略2: ¥/￥ 符号旁边的数字
+            if (!amount) {
+                const currencyMatches = [...texts.matchAll(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/g)]
+                    .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
+                if (currencyMatches.length === 1) {
+                    amount = currencyMatches[0];
+                } else if (currencyMatches.length > 1) {
+                    amount = currencyMatches.reduce((sum, n) => sum + n, 0);
+                    amount = Math.round(amount * 100) / 100;
+                }
+            }
+
+            // 策略3: 带两位小数的数字，取最后出现的
+            if (!amount) {
+                const decimals = [...texts.matchAll(/(?<![.\d])(\d{1,5}\.\d{2})(?![.\d])/g)]
+                    .map(m => parseFloat(m[1])).filter(n => n > 0 && n < 100000);
+                if (decimals.length > 0) amount = decimals[decimals.length - 1];
+            }
+
+            // 策略4: 整数金额兜底
+            if (!amount) {
+                const ints = [...texts.matchAll(/(?<![.\d])(\d{1,5})(?![.\d])/g)]
+                    .map(m => parseFloat(m[1])).filter(n => n >= 1 && n <= 9999);
+                if (ints.length > 0) amount = ints[ints.length - 1];
+            }
+
+            return amount;
+        }
+
+        function fillAmount(mode, amount) {
+            if (mode === 'simple') {
+                document.getElementById('totalAmount').value = amount;
+                calculateSimple();
+            } else if (mode === 'multiple') {
+                const firstInput = document.querySelector('#expenseList .expense-amount');
+                if (firstInput && !firstInput.value) {
+                    firstInput.value = amount;
+                } else {
+                    addExpense();
+                    const inputs = document.querySelectorAll('#expenseList .expense-amount');
+                    const lastInput = inputs[inputs.length - 1];
+                    if (lastInput) lastInput.value = amount;
+                }
+                calculateMultiple();
+            } else if (mode === 'advance') {
+                document.getElementById('advTotalAmount').value = amount;
+                calculateAdvance();
             }
         }
     </script>
