@@ -937,15 +937,11 @@
                         let handled = false;
 
                         // 多笔消费模式：尝试逐行提取每笔金额
-                        // DEBUG: 临时调试，显示OCR原始结果
-                        const debugInfo = `mode=${mode} texts=${!!result.texts} words=${result.words ? result.words.length : 'null'}`;
-                        progress.textContent = `[调试] ${debugInfo}`;
-                        progress.style.display = 'block';
-                        // END DEBUG
-
                         if (mode === 'multiple' && result.words && result.words.length > 0) {
                             const lineItems = extractLineItems(result.words);
-                            progress.textContent = `[调试2] 提取${lineItems.length}笔: [${lineItems.join(',')}]`;
+                            // DEBUG: 弹窗显示调试信息
+                            alert(`调试信息:\n共${result.words.length}行\n提取${lineItems.length}笔\n金额: [${lineItems.join(', ')}]\n\n前8行:\n${result.words.slice(0,8).join('\n')}`);
+                            // END DEBUG
                             if (lineItems.length > 1) {
                                 lineItems.forEach(amt => fillAmount('multiple', amt));
                                 const total = Math.round(lineItems.reduce((s, n) => s + n, 0) * 100) / 100;
