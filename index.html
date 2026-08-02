@@ -934,6 +934,9 @@
                 try {
                     const result = await callOCRAPI(base64);
                     if (result.texts) {
+                        // DEBUG
+                        alert(`mode=${mode}\nwords=${result.words ? result.words.length+'行' : 'null'}\ntexts前50字: ${result.texts.substring(0,50)}`);
+                        // END DEBUG
                         let handled = false;
 
                         // 多笔消费模式：尝试逐行提取每笔金额
